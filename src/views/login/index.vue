@@ -13,7 +13,7 @@
         <el-input
           ref="username"
           v-model="loginForm.username"
-          placeholder="用户名"
+          placeholder="请输入用户名"
           name="username"
           type="text"
           tabindex="1"
@@ -31,7 +31,7 @@
             ref="password"
             v-model="loginForm.password"
             :type="passwordType"
-            placeholder="密码"
+            placeholder="请输入密码"
             name="password"
             tabindex="2"
             autocomplete="on"
@@ -45,56 +45,59 @@
         </el-form-item>
       </el-tooltip>
 
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">登录</el-button>
+      <el-form-item style="position:relative">
+        <el-input
+          v-model="loginForm.captcha"
+          name="logVerify"
+          placeholder="请输入验证码"
+          maxlength="10"
+        />
+        <img v-if="picPath" :src="path + picPath" alt="请输入验证码" class="vPic" @click="loginVefify()">
+      </el-form-item>
 
-      <!-- <div style="position:relative">
-        <el-button class="thirdparty-button" type="primary" @click="showDialog=true">
-          第三方登录
-        </el-button>
-      </div> -->
+      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="submitForm">登录</el-button>
+      <h3 class="text-center fr">测试账号:admin 密码:123456</h3>
     </el-form>
 
-    <!-- <el-dialog title="第三方登录" :visible.sync="showDialog">
-      Can not be simulated on local, so please combine you own business simulation! ! !
-      <br>
-      <br>
-      <br>
-      <social-sign />
-    </el-dialog> -->
   </div>
 </template>
 
 <script>
-// import { validUsername } from '@/utils/validate'
-// import SocialSign from './components/SocialSignin'
 
+import { mapActions } from 'vuex'
+import { captcha } from '@/api/user'
+const path = process.env.VUE_APP_BASE_API
 export default {
   name: 'Login',
-  // components: { SocialSign },
   data() {
     const validateUsername = (rule, value, callback) => {
-      if (!value || value.length === 0) {
-        callback(new Error('请输入用户名'))
+      if (value.length < 5 || value.length > 12) {
+        return callback(new Error('请输入正确的用户名'))
       } else {
         callback()
       }
     }
     const validatePassword = (rule, value, callback) => {
-      if (value.length < 4) {
-        callback(new Error('密码不能少于6位'))
+      if (value.length < 6 || value.length > 12) {
+        return callback(new Error('请输入正确的密码'))
       } else {
         callback()
       }
     }
     return {
       loginForm: {
-        username: 'admin',
-        password: 'admin'
+        username: '',
+        password: '',
+        captcha: '',
+        captchaId: ''
       },
       loginRules: {
         username: [{ required: true, trigger: 'blur', validator: validateUsername }],
         password: [{ required: true, trigger: 'blur', validator: validatePassword }]
       },
+      path: path,
+      logVerify: '',
+      picPath: '',
       passwordType: 'password',
       capsTooltip: false,
       loading: false,
@@ -116,7 +119,7 @@ export default {
     }
   },
   created() {
-    // window.addEventListener('storage', this.afterQRScan)
+    this.loginVefify()
   },
   mounted() {
     if (this.loginForm.username === '') {
@@ -126,9 +129,34 @@ export default {
     }
   },
   destroyed() {
-    // window.removeEventListener('storage', this.afterQRScan)
   },
   methods: {
+    ...mapActions('user', ['LoginIn']),
+    async login() {
+      await this.LoginIn(this.loginForm)
+    },
+    async submitForm() {
+      this.$refs.loginForm.validate(async v => {
+        if (v) {
+          this.login()
+          this.loginVefify()
+        } else {
+          this.$message({
+            type: 'error',
+            message: '请正确填写登录信息',
+            showClose: true
+          })
+          this.loginVefify()
+          return false
+        }
+      })
+    },
+    loginVefify() {
+      captcha({}).then(ele => {
+        this.picPath = ele.data.picPath
+        this.loginForm.captchaId = ele.data.captchaId
+      })
+    },
     checkCapslock(e) {
       const { key } = e
       this.capsTooltip = key && key.length === 1 && (key >= 'A' && key <= 'Z')
@@ -169,24 +197,6 @@ export default {
         return acc
       }, {})
     }
-    // afterQRScan() {
-    //   if (e.key === 'x-admin-oauth-code') {
-    //     const code = getQueryObject(e.newValue)
-    //     const codeMap = {
-    //       wechat: 'code',
-    //       tencent: 'code'
-    //     }
-    //     const type = codeMap[this.auth_type]
-    //     const codeName = code[type]
-    //     if (codeName) {
-    //       this.$store.dispatch('LoginByThirdparty', codeName).then(() => {
-    //         this.$router.push({ path: this.redirect || '/' })
-    //       })
-    //     } else {
-    //       alert('第三方登录失败')
-    //     }
-    //   }
-    // }
   }
 }
 </script>
@@ -196,8 +206,8 @@ export default {
 /* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
 
 $bg:#283443;
-$light_gray:#fff;
-$cursor: #fff;
+$light_gray:#ffff;
+$cursor: #000000;
 
 @supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
   .login-container .el-input input {
@@ -218,7 +228,7 @@ $cursor: #fff;
       -webkit-appearance: none;
       border-radius: 0px;
       padding: 12px 5px 12px 15px;
-      color: $light_gray;
+      color: #000000;
       height: 47px;
       caret-color: $cursor;
 
@@ -239,9 +249,9 @@ $cursor: #fff;
 </style>
 
 <style lang="scss" scoped>
-$bg:#2d3a4b;
+$bg:#ffff;
 $dark_gray:#889aa4;
-$light_gray:#eee;
+$light_gray:#000;
 
 .login-container {
   min-height: 100%;
@@ -304,6 +314,12 @@ $light_gray:#eee;
     position: absolute;
     right: 0;
     bottom: 6px;
+  }
+
+  .vPic{
+    position: absolute;
+    right: 10px;
+    bottom: 0px; //设配ie
   }
 
   @media only screen and (max-width: 470px) {
